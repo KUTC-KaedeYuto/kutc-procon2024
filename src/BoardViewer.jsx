@@ -6,40 +6,38 @@ export default function BoardViewer({ width, height, board }) {
     const canvas_ref = useRef();
     const [cellSize, setCellSize] = useState(50);
     const [zoom, setZoom] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    const _zoom = useRef(zoom);
+    const [offset, setOffset] = useState({ x: width * offsetRate, y: height * offsetRate });
     const mouseDown = useRef(false);
     const prevMousePos = useRef([0, 0]);
 
     const draw = () => {
         const canvas = canvas_ref.current;
         const ctx = canvas.getContext('2d');
-        const offset_x = width * offsetRate;
-        const offset_y = height * offsetRate;
         const b_width = board.size.width, b_height = board.size.height;
 
         ctx.save();
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = "#444";
+        ctx.fillStyle = "#777";
         ctx.fillRect(0, 0, width, height);
-        ctx.translate(offset.x, offset.y);
-        ctx.translate(offset_x, offset_y);
-        ctx.scale(zoom, zoom);
 
+        ctx.scale(zoom, zoom);
         ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, cellSize * b_width, cellSize * b_height);
+        ctx.fillRect(offset.x, offset.y, cellSize * b_width, cellSize * b_height);
         ctx.strokeStyle = "#000";
-        for (let i = 0; i <= b_height; i++) {
+        for (let i = offset.y % cellSize; i <= height / zoom; i+=cellSize) {
             ctx.beginPath();
-            ctx.moveTo(0, cellSize * i);
-            ctx.lineTo(cellSize * b_width, cellSize * i);
+            ctx.moveTo(0, i);
+            ctx.lineTo(width / zoom, i);
             ctx.stroke();
         }
-        for (let i = 0; i <= b_width; i++) {
+        for (let i = offset.x % cellSize; i <= width / zoom; i+=cellSize) {
             ctx.beginPath();
-            ctx.moveTo(cellSize * i, 0);
-            ctx.lineTo(cellSize * i, cellSize * b_height);
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, height / zoom);
             ctx.stroke();
         }
+        ctx.translate(offset.x, offset.y);
         ctx.fillStyle = "#000";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -70,8 +68,8 @@ export default function BoardViewer({ width, height, board }) {
         const dx = e.clientX - prevMousePos.current[0];
         const dy = e.clientY - prevMousePos.current[1];
         setOffset(prevOffset => ({
-            x: prevOffset.x + dx,
-            y: prevOffset.y + dy
+            x: prevOffset.x + dx / _zoom.current,
+            y: prevOffset.y + dy / _zoom.current
         }));
         prevMousePos.current = [e.clientX, e.clientY];
     };
@@ -84,12 +82,13 @@ export default function BoardViewer({ width, height, board }) {
         if (mouseDown.current && (e.key === 'r' || e.key === 'R')) {
             e.preventDefault();
             setZoom(1);
-            setOffset({ x: 0, y: 0 });
+            setOffset({ x: width * offsetRate, y: height * offsetRate });
         }
     };
 
     useEffect(() => {
         draw();
+        _zoom.current = zoom;
     }, [board, zoom, offset]);
 
     useEffect(() => {
