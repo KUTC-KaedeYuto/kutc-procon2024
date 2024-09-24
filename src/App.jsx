@@ -6,6 +6,7 @@ import Button from "react-bootstrap/Button";
 import BoardViewer from "./BoardViewer.jsx";
 import TemplateViewer from "./TemplateViewer.jsx";
 import { applyPattern } from "./utils.js";
+import { Form } from "react-bootstrap";
 
 const BASIC_PATTERNS = [
   {
@@ -99,10 +100,16 @@ export default function App() {
       {
         problem && currentBoard &&
         <>
-          <h2>Goal</h2>
-          <BoardViewer width={500} height={500} board={problem.board.goal} />
-          <h2>Current</h2>
-          <BoardViewer width={500} height={500} board={currentBoard} />
+          <div className="d-flex">
+            <div className="me-2">
+              <h2>Goal</h2>
+              <BoardViewer width={500} height={500} board={problem.board.goal} />
+            </div>
+            <div>
+              <h2 className="">Current</h2>
+              <BoardViewer width={500} height={500} board={currentBoard} />
+            </div>
+          </div>
           抜き型一覧
           <div style={{
             display: "flex",
@@ -116,11 +123,16 @@ export default function App() {
               problem.patterns.map(p => <TemplateViewer template={p} width={200} height={200} key={`pattern#${p.p}`} />)
             }
           </div>
+          <Form>
+            <Form.Label>回答出力</Form.Label>
+            <Form.Control id="answerOutput"></Form.Control>
+          </Form>
           <Button onClick={() => {
             // applyPattern関数はutils.js参照
             let new_board = { ...applyPattern(currentBoard, problem.patterns[11], 2, 1, 2) };
             setCurrentBoard(new_board);
           }}>テスト</Button>
+          <GenerateAnswerButton problem={problem} current={currentBoard} setCurrent={setCurrentBoard} />
 
         </>
       }
@@ -128,5 +140,81 @@ export default function App() {
   );
 }
 
+function GenerateAnswerButton({ problem, current, setCurrent }) {
+  let _current;
+  const pattern = problem.patterns[0];
+  const goal = problem.board.goal.cells;
+  const ops = [];
 
+  const find = (x, y) => {
+    const num = goal[y][x];
+    console.log(`(${x} ${y})find ${num}`);
+    let i = y, j = x;
+    while (i < _current.cells.length) {
+      if (_current.cells[i][j] === num) { console.log(`found at (${j}, ${i})`); return [j, i]; }
+      j++;
+      if (j >= _current.cells[i].length) {
+        j = 0;
+        i++;
+      }
+    }
+    return null;
+  }
 
+  const move = (x, y, distX, distY) => {
+    while (x < distX) {
+      //X座標を右に持っていく
+      ops.push({
+        p: pattern.p,
+        x: distX,
+        y,
+        s: 3
+      });
+      _current = applyPattern(_current, pattern, distX, y, 3);
+      x++;
+    }
+    while (y > distY) {
+      //Y軸でそろえる
+      ops.push({
+        p: pattern.p,
+        x,
+        y: distY,
+        s: 0
+      });
+      _current = applyPattern(_current, pattern, x, distY, 0);
+      y--;
+    }
+    while (x > distX) {
+      ops.push({
+        p: pattern.p,
+        x: distX,
+        y: distY,
+        s: 2
+      });
+      _current = applyPattern(_current, pattern, distX, distY, 2);
+      x--;
+    }
+  };
+
+  useEffect(() => {
+    _current = current;
+    console.log(_current);
+  }, []);
+
+  return (<Button onClick={() => {
+    for (let i = 0; i < goal.length; i++) {
+      for (let j = 0; j < goal[i].length; j++) {
+        const num = goal[i][j];
+        if (_current.cells[i][j] === num) continue;
+        let src = find(j, i);
+        if (src === null) {
+          alert("error");
+          return;
+        }
+        move(src[0], src[1], j, i);
+      }
+    }
+    console.log(ops);
+    setCurrent(_current);
+  }}>回答生成</Button>);
+}
