@@ -104,3 +104,78 @@ function shiftCells(board, dir, pattern, x, y) {
   //console.log(cells);
   return {...board, cells: cells};
 }
+
+export class BoardController{
+  #init_board;
+  #board;
+  #operations;
+  #history;
+
+  constructor(board){
+    this.#init_board = board;
+    this.reset();
+  }
+
+  get board(){
+    return this.#board;
+  }
+
+  get operations() {
+    return {
+      n: this.#operations.length,
+      ops: this.#operations
+    };
+  }
+
+  get cells(){
+    return this.#board.cells;
+  }
+
+  get size(){
+    return this.#board.size;
+  }
+
+  #setBoard(new_board){
+    this.#history.push(this.#board);
+    this.#board = new_board;
+  }
+
+  reset(){
+    this.resetBoard();
+    this.resetOperations();
+  }
+
+  resetBoard(){
+    this.#board = this.#init_board;
+    this.#history = [];
+  }
+
+  resetOperations(){
+    this.#operations = [];
+  }
+
+  applyPattern(pattern, x, y, dir){
+    this.#setBoard(applyPattern(this.#board, pattern, x, y, dir));
+    this.#operations.push({
+      p: pattern.p,
+      x,
+      y,
+      s: dir
+    });
+  }
+
+  undo(){
+    if(this.#history.length === 0) return null;
+    this.#board = this.#history.pop();
+    return this.#operations.pop();
+  }
+
+}
+
+
+export const DIR = {
+  UP: 0,
+  DOWN: 1,
+  LEFT: 2,
+  RIGHT: 3
+};

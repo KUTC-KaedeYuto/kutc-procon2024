@@ -5,7 +5,7 @@ import Container from 'react-bootstrap/Container';
 import Button from "react-bootstrap/Button";
 import BoardViewer from "./BoardViewer.jsx";
 import TemplateViewer from "./TemplateViewer.jsx";
-import { applyPattern } from "./utils.js";
+import { applyPattern, BoardController, DIR } from "./utils.js";
 import { Form } from "react-bootstrap";
 
 const BASIC_PATTERNS = [
@@ -148,10 +148,9 @@ function GenerateAnswerButton({ problem, current, setCurrent }) {
 
   const find = (x, y) => {
     const num = goal[y][x];
-    console.log(`(${x} ${y})find ${num}`);
     let i = y, j = x;
     while (i < _current.cells.length) {
-      if (_current.cells[i][j] === num) { console.log(`found at (${j}, ${i})`); return [j, i]; }
+      if (_current.cells[i][j] === num) return [j, i];
       j++;
       if (j >= _current.cells[i].length) {
         j = 0;
@@ -164,41 +163,23 @@ function GenerateAnswerButton({ problem, current, setCurrent }) {
   const move = (x, y, distX, distY) => {
     while (x < distX) {
       //X座標を右に持っていく
-      ops.push({
-        p: pattern.p,
-        x: distX,
-        y,
-        s: 3
-      });
-      _current = applyPattern(_current, pattern, distX, y, 3);
+      _current.applyPattern(pattern, distX, y, DIR.RIGHT);
       x++;
     }
     while (y > distY) {
       //Y軸でそろえる
-      ops.push({
-        p: pattern.p,
-        x,
-        y: distY,
-        s: 0
-      });
-      _current = applyPattern(_current, pattern, x, distY, 0);
+      _current.applyPattern(pattern, x, distY, DIR.UP);
       y--;
     }
     while (x > distX) {
-      ops.push({
-        p: pattern.p,
-        x: distX,
-        y: distY,
-        s: 2
-      });
-      _current = applyPattern(_current, pattern, distX, distY, 2);
+      _current.applyPattern(pattern, distX, distY, DIR.LEFT);
       x--;
     }
   };
 
   useEffect(() => {
-    _current = current;
-    console.log(_current);
+    _current = new BoardController(current);
+    console.log(_current.board);
   }, []);
 
   return (<Button onClick={() => {
@@ -214,7 +195,7 @@ function GenerateAnswerButton({ problem, current, setCurrent }) {
         move(src[0], src[1], j, i);
       }
     }
-    console.log(ops);
-    setCurrent(_current);
+    console.log(_current.operations);
+    setCurrent(_current.board);
   }}>回答生成</Button>);
 }
