@@ -1,10 +1,9 @@
 import "./App.scss";
-import React, { useEffect } from "react";
-import { useState } from "react";
+import React, { useState, useEffect, createContext } from "react";
 import Container from 'react-bootstrap/Container';
 import Button from "react-bootstrap/Button";
 import BoardViewer from "./BoardViewer.jsx";
-import TemplateViewer from "./TemplateViewer.jsx";
+import PatternViewer from "./PatternViewer.jsx";
 import { applyPattern, BoardController, DIR } from "./utils.js";
 import { Form } from "react-bootstrap";
 
@@ -41,11 +40,13 @@ for (let i = 2; i <= 256; i *= 2) {
 
 }
 
+export const TargetPatternContext = createContext(null);
 
 export default function App() {
   const [disabled, setDisabled] = useState(false);
   const [problem, setProblem] = useState(null);
   const [currentBoard, setCurrentBoard] = useState(null);
+  const [targetPattern, setTargetPattern] = useState(null);
 
   useEffect(() => {
     console.log(problem);
@@ -91,6 +92,10 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    console.log(targetPattern);
+  }, [targetPattern]);
+
   return (
     <Container fluid>
       <Button variant="primary" disabled={disabled} onClick={() => {
@@ -99,7 +104,7 @@ export default function App() {
       }} >問題取得</Button>
       {
         problem && currentBoard &&
-        <>
+        <TargetPatternContext.Provider value={{targetPattern, setTargetPattern}}>
           <div className="d-flex">
             <div className="me-2">
               <h2>Goal</h2>
@@ -107,7 +112,7 @@ export default function App() {
             </div>
             <div>
               <h2 className="">Current</h2>
-              <BoardViewer width={500} height={500} board={currentBoard} />
+              <BoardViewer width={500} height={500} board={currentBoard} editable />
             </div>
           </div>
           抜き型一覧
@@ -120,7 +125,7 @@ export default function App() {
           }}>
 
             {
-              problem.patterns.map(p => <TemplateViewer template={p} width={200} height={200} key={`pattern#${p.p}`} />)
+              problem.patterns.map(p => <PatternViewer pattern={p} width={200} height={200} key={`pattern#${p.p}`} />)
             }
           </div>
           <Form>
@@ -134,7 +139,7 @@ export default function App() {
           }}>テスト</Button>
           <GenerateAnswerButton problem={problem} current={currentBoard} setCurrent={setCurrentBoard} />
 
-        </>
+        </TargetPatternContext.Provider>
       }
     </Container>
   );
@@ -144,7 +149,6 @@ function GenerateAnswerButton({ problem, current, setCurrent }) {
   let _current;
   const pattern = problem.patterns[0];
   const goal = problem.board.goal.cells;
-  const ops = [];
 
   const find = (x, y) => {
     const num = goal[y][x];

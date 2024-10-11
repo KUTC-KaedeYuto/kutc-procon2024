@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { TargetPatternContext } from "./App.jsx";
 
 
-export default function TemplateViewer({ template, width, height }) {
+export default function PatternViewer({ pattern, width, height }) {
     const canvas_ref = useRef();
-    const [cellSize, setCellSize] = useState(Math.max(3, (Math.min(Math.floor(width / template.size.width), Math.floor(height / template.size.height)))));
+    const {setTargetPattern} = useContext(TargetPatternContext);
+    const [cellSize, setCellSize] = useState(Math.max(3, (Math.min(Math.floor(width / pattern.size.width), Math.floor(height / pattern.size.height)))));
 
     const draw = () => {
         const canvas = canvas_ref.current;
         const ctx = canvas.getContext('2d');
 
-        const b_width = template.size.width, b_height = template.size.height;
+        const b_width = pattern.size.width, b_height = pattern.size.height;
         
         ctx.clearRect(0, 0, width, height);
         ctx.save();
@@ -17,7 +19,7 @@ export default function TemplateViewer({ template, width, height }) {
         ctx.fillStyle = "#000";
         for(let i = 0; i < b_height; i++){
             for(let j = 0; j < b_width; j++){
-                if(template.cells[i][j] !== 0){
+                if(pattern.cells[i][j] !== 0){
                     ctx.fillRect(cellSize * j, cellSize * i, cellSize, cellSize);
                 }
             }
@@ -45,11 +47,17 @@ export default function TemplateViewer({ template, width, height }) {
     }, []);
 
     return (
-        <div className="m-3" style={{
-            width: `${width}px`,
-            height: `${height}px`
-        }}>
-            {template.p}
+        <div
+            className="m-3"
+            style={{
+                width: `${width}px`,
+                height: `${height}px`
+            }}
+            onClick={() => {
+                setTargetPattern(pattern);
+            }}
+        >
+            {pattern.p}
             <canvas ref={canvas_ref} width={width} height={height}></canvas>
         </div>
     );
