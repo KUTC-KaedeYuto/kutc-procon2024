@@ -179,3 +179,26 @@ export const DIR = {
   LEFT: 2,
   RIGHT: 3
 };
+
+export function boardScore(board, goal){
+  const cells = board.cells;
+  const goal_cells = goal.cells;
+  const all = cells.length * cells[0].length
+  let n = 0;
+  for(let i = 0; i < cells.length; i++){
+    for(let j = 0; j < cells[i].length;j++){
+      if(cells[i][j] === goal_cells[i][j]) n++;
+    }
+  }
+  return {
+    all,
+    correct: n,
+    incorrect: all - n,
+    accuracy: n / all
+  };
+}
+
+export function answerScore(ans){
+  const C = 10, a = 0.0001;
+  return C / Math.log2(a * ans.n + 1);
+}
