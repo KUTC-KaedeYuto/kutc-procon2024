@@ -140,30 +140,6 @@ export default function BoardViewer({ width, height, board, editable = false }) 
     const handleMouseDown = (e) => {
         mouseDown.current = true;
         const rect = e.target.getBoundingClientRect();
-        if (targetPattern) {
-            setPlacingPattern({
-                pos: {
-                    x: Math.floor((prevMousePos.current[0] / zoom - offset.x) / cellSize),
-                    y: Math.floor((prevMousePos.current[1] / zoom - offset.y) / cellSize)
-                },
-                pattern: targetPattern
-            });
-            setTargetPattern(null);
-        }
-        if(placingPattern){
-            const mouseDelta = {
-                x: prevMousePos.current[0] - width / 2,
-                y: prevMousePos.current[1] - height / 2
-            };
-            const theta = Math.atan2(mouseDelta.y, mouseDelta.x);
-            let dir = [3, 1, 2, 0][getDir(theta)];
-            console.log({
-                x: placingPattern.pos.x,
-                y: placingPattern.pos.y,
-                p: placingPattern.pattern,
-                s: dir
-            });
-        }
         prevMousePos.current = [e.clientX - rect.x, e.clientY - rect.y];
     };
 
@@ -186,6 +162,34 @@ export default function BoardViewer({ width, height, board, editable = false }) 
         mouseDown.current = false;
     };
 
+    const handleClick = () => {
+        if (targetPattern) {
+            setPlacingPattern({
+                pos: {
+                    x: Math.floor((prevMousePos.current[0] / zoom - offset.x) / cellSize),
+                    y: Math.floor((prevMousePos.current[1] / zoom - offset.y) / cellSize)
+                },
+                pattern: targetPattern
+            });
+            setTargetPattern(null);
+        }
+        if(placingPattern){
+            const mouseDelta = {
+                x: prevMousePos.current[0] - width / 2,
+                y: prevMousePos.current[1] - height / 2
+            };
+            const theta = Math.atan2(mouseDelta.y, mouseDelta.x);
+            let dir = [3, 1, 2, 0][getDir(theta)];
+            console.log({
+                x: placingPattern.pos.x,
+                y: placingPattern.pos.y,
+                p: placingPattern.pattern.p,
+                s: dir
+            });
+            setPlacingPattern(null);
+        }
+    }
+
     const handleKeyDown = (e) => {
         if (mouseDown.current && (e.key === 'r' || e.key === 'R')) {
             e.preventDefault();
@@ -204,7 +208,7 @@ export default function BoardViewer({ width, height, board, editable = false }) 
 
     useEffect(() => {
         draw();
-    }, [board, zoom, offset, onCursor]);
+    }, [board, zoom, offset, onCursor, placingPattern]);
 
     useEffect(() => {
         const canvas = canvas_ref.current;
@@ -234,6 +238,7 @@ export default function BoardViewer({ width, height, board, editable = false }) 
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
+                onClick={handleClick}
                 onKeyDown={handleKeyDown}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
