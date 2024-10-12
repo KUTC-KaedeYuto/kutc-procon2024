@@ -1,3 +1,37 @@
+export const BASIC_PATTERNS = [
+  {
+    p: 0,
+    size: {
+      width: 1,
+      height: 1
+    },
+    cells: [[1]]
+  }
+];
+
+
+const cellValue = (type, x, y) => {
+  if (type === 0) return 1
+  if (type === 1) return (y + 1) % 2;
+  return (x + 1) % 2;
+};
+
+for (let i = 2; i <= 256; i *= 2) {
+  for (let j = 0; j < 3; j++) {
+    BASIC_PATTERNS.push(
+      {
+        p: BASIC_PATTERNS.length,
+        size: {
+          width: i,
+          height: i
+        },
+        cells: new Array(i).fill(0).map((_n, k) => new Array(i).fill(0).map((_m, l) => cellValue(j, l, k)))
+      }
+    );
+  }
+}
+
+
 //抜き型を適用する関数
 // board: 適用するボード
 // pattern: 適用する抜き型
@@ -6,6 +40,7 @@
 export function applyPattern(board, pattern, x, y, dir) {
   // dir: 方向(0: 上, 1: 下, 2: 左, 3: 右)
   let [ox, oy, masked_pattern] = maskPattern(board, pattern, x, y);
+  if (masked_pattern.size.width <= 0 || masked_pattern.size.height <= 0) throw new InvalidOperationException(board, pattern, x, y);
   return shiftCells(board, dir, masked_pattern, ox, oy);
 }
 
@@ -29,13 +64,13 @@ function maskPattern(board, pattern, x, y) {
   }
 
   if (x + masked_pattern.size.width > board.size.width) {
-    masked_pattern.size.width = board.size.width - x;
+    masked_pattern.size.width = Math.max(0, board.size.width - x);
     masked_pattern.cells.map(line => {
       line.splice(board.size.width - x, line.length);
     });
   }
   if (y + masked_pattern.size.height > board.size.height) {
-    masked_pattern.size.height = board.size.height - y;
+    masked_pattern.size.height = Math.max(0, board.size.height - y);
     masked_pattern.cells.splice(board.size.height - y, masked_pattern.cells.length);
   }
 
@@ -44,7 +79,6 @@ function maskPattern(board, pattern, x, y) {
 
 //抜き型を適用したときのマスの移動を計算する関数
 function shiftCells(board, dir, pattern, x, y) {
-  //console.log("--shiftCells--");
   // _dir == 0 -> vertical, _dir == 1 -> horizontal
   const _dir = Math.floor(dir / 2);
   const length = _dir === 0 ? pattern.size.width : pattern.size.height;
@@ -59,7 +93,6 @@ function shiftCells(board, dir, pattern, x, y) {
   let cells = board.cells.map(row => row.slice());
   let pattern_cells = pattern.cells.map(row => row.slice());
 
-  // console.log(x, y, cells, pattern_cells, dir);
   // 転置処理（縦方向シフト時のみ）
   if (_dir === 0) {
     cells = transpose(cells);
@@ -68,8 +101,6 @@ function shiftCells(board, dir, pattern, x, y) {
     x = y;
     y = temp;
   }
-
-  //console.log(x, y, cells, pattern_cells);
 
   // 移動対象のセルを取得
   for (let i = 0; i < pattern_cells.length; i++) {
@@ -81,7 +112,6 @@ function shiftCells(board, dir, pattern, x, y) {
       }
     }
   }
-  //console.log(cells, movingCells);
 
   // シフト操作
   for (let i = 0; i < movingCells.length; i++) {
@@ -100,76 +130,96 @@ function shiftCells(board, dir, pattern, x, y) {
     cells = transpose(cells);
   }
 
-  //console.log("result");
-  //console.log(cells);
-  return {...board, cells: cells};
+  return { ...board, cells: cells };
 }
 
-export class BoardController{
+export class BoardController {
   #init_board;
   #board;
   #operations;
   #history;
+  #state;
 
-  constructor(board){
+  constructor({ board, setBoard, operations, setOperations }) {
     this.#init_board = board;
+    this.#state = {
+      board,
+      setBoard,
+      operations,
+      setOperations
+    };
     this.reset();
   }
 
-  get board(){
+  get board() {
     return this.#board;
   }
 
   get operations() {
-    return {
-      n: this.#operations.length,
-      ops: this.#operations
-    };
+    return this.#operations;
   }
 
-  get cells(){
+  get cells() {
     return this.#board.cells;
   }
 
-  get size(){
+  get size() {
     return this.#board.size;
   }
 
-  #setBoard(new_board){
+  #setBoard(new_board) {
     this.#history.push(this.#board);
     this.#board = new_board;
   }
 
-  reset(){
+  reset() {
     this.resetBoard();
     this.resetOperations();
   }
 
-  resetBoard(){
+  resetBoard() {
     this.#board = this.#init_board;
     this.#history = [];
   }
 
-  resetOperations(){
+  resetOperations() {
     this.#operations = [];
   }
 
-  applyPattern(pattern, x, y, dir){
-    this.#setBoard(applyPattern(this.#board, pattern, x, y, dir));
-    this.#operations.push({
-      p: pattern.p,
-      x,
-      y,
-      s: dir
-    });
+  applyPattern(pattern, x, y, dir) {
+    try {
+      this.#setBoard(applyPattern(this.#board, pattern, x, y, dir));
+      this.#operations.push({
+        p: pattern.p,
+        x,
+        y,
+        s: dir
+      });
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-  undo(){
-    if(this.#history.length === 0) return null;
+  undo() {
+    if (this.#history.length === 0) return null;
     this.#board = this.#history.pop();
     return this.#operations.pop();
   }
 
+  update() {
+    this.#state.setBoard(this.#board);
+    this.#state.setOperations({
+      n: this.#operations.length,
+      ops: this.#operations
+    });
+  }
+
+}
+
+export class InvalidOperationException extends Error {
+  constructor(board, pattern, x, y) {
+    super(`The operation originating from (${x}, ${y}) using pattern [No.${pattern.p}] on a ${board.size.width}x${board.size.height} board is invalid`);
+  }
 }
 
 
@@ -180,14 +230,14 @@ export const DIR = {
   RIGHT: 3
 };
 
-export function boardScore(board, goal){
+export function boardScore(board, goal) {
   const cells = board.cells;
   const goal_cells = goal.cells;
   const all = cells.length * cells[0].length
   let n = 0;
-  for(let i = 0; i < cells.length; i++){
-    for(let j = 0; j < cells[i].length;j++){
-      if(cells[i][j] === goal_cells[i][j]) n++;
+  for (let i = 0; i < cells.length; i++) {
+    for (let j = 0; j < cells[i].length; j++) {
+      if (cells[i][j] === goal_cells[i][j]) n++;
     }
   }
   return {
@@ -198,7 +248,11 @@ export function boardScore(board, goal){
   };
 }
 
-export function answerScore(ans){
-  const C = 10, a = 0.0001;
-  return C / Math.log2(a * ans.n + 1);
+export function answerScore(ans) {
+  const b = 10000, a = -0.001;
+  return b * Math.pow(Math.E, a * ans.n);
+}
+
+export function totalScore(board_score, answer_score) {
+  return Math.round((board_score.correct * 100000 + answer_score) * 100) / 100;
 }
