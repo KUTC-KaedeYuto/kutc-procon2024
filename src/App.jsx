@@ -1,44 +1,13 @@
 import "./App.scss";
-import React, { useState, useEffect, createContext } from "react";
+import React, { useState, useEffect, createContext, useRef } from "react";
 import Container from 'react-bootstrap/Container';
 import Button from "react-bootstrap/Button";
 import BoardViewer from "./BoardViewer.jsx";
 import PatternViewer from "./PatternViewer.jsx";
-import { applyPattern, BoardController, DIR } from "./utils.js";
-import { Form } from "react-bootstrap";
-
-const BASIC_PATTERNS = [
-  {
-    p: 0,
-    size: {
-      width: 1,
-      height: 1
-    },
-    cells: [[1]]
-  }
-];
-
-const cellValue = (type, x, y) => {
-  if (type === 0) return 1
-  if (type === 1) return (y + 1) % 2;
-  return (x + 1) % 2;
-};
-
-for (let i = 2; i <= 256; i *= 2) {
-  for (let j = 0; j < 3; j++) {
-    BASIC_PATTERNS.push(
-      {
-        p: BASIC_PATTERNS.length,
-        size: {
-          width: i,
-          height: i
-        },
-        cells: new Array(i).fill(0).map((_n, k) => new Array(i).fill(0).map((_m, l) => cellValue(j, l, k)))
-      }
-    );
-  }
-
-}
+import { answerScore, BASIC_PATTERNS, BoardController, boardScore, totalScore } from "./utils.js";
+import Form from "react-bootstrap/Form";
+import BasicAnswerButton from "./buttons/BasicAnswerButton.jsx";
+import { ListGroup } from "react-bootstrap";
 
 export const TargetPatternContext = createContext(null);
 
@@ -46,11 +15,41 @@ export default function App() {
   const [disabled, setDisabled] = useState(false);
   const [problem, setProblem] = useState(null);
   const [currentBoard, setCurrentBoard] = useState(null);
+  const [operations, setOperations] = useState(null);
   const [targetPattern, setTargetPattern] = useState(null);
+  const [submittedAnswers, setSubmittedAnswers] = useState([]);
+  const controller = useRef(null);
+  const [submitResponse, setSubmitResponse] = useState(null);
+
+  const handleResponse = ({ status, body }) => {
+    console.log(`[Answer Response] Status:${status}`);
+    console.log(body);
+    if (status === 200) {
+      body = JSON.parse(body);
+      alert(`回答が受理されました(受理番号:${body.revision})`);
+      setSubmittedAnswers((prev) => [...prev, {
+        number: body.revision,
+        controller: controller.current,
+        score: {
+          board: boardScore(currentBoard, problem.board.goal),
+          answer: answerScore(operations)
+        }
+      }]);
+    }
+  };
 
   useEffect(() => {
     console.log(problem);
-    if (problem && !currentBoard) setCurrentBoard(problem.board.start);
+    if (problem) {
+      setCurrentBoard(problem.board.start);
+      setOperations({ n: 0, ops: [] });
+      controller.current = new BoardController({
+        board: problem.board.start,
+        setBoard: setCurrentBoard,
+        operations,
+        setOperations
+      });
+    }
   }, [problem]);
   useEffect(() => {
     // subscribe event
@@ -90,116 +89,121 @@ export default function App() {
       console.log(body);
       setDisabled(false);
     });
+    proconApi.onAnswerRespond((res) => {
+      setDisabled(false);
+      setSubmitResponse(res);
+    });
   }, []);
 
   useEffect(() => {
-    console.log(targetPattern);
-  }, [targetPattern]);
+    if (submitResponse) handleResponse(submitResponse);
+  }, [submitResponse]);
 
   return (
     <Container fluid>
       <Button variant="primary" disabled={disabled} onClick={() => {
         setDisabled(true);
         proconApi.getProblem();
-      }} >問題取得</Button>
+      }} >問題取得&リセット</Button>
       {
         problem && currentBoard &&
-        <TargetPatternContext.Provider value={{targetPattern, setTargetPattern}}>
+        <TargetPatternContext.Provider value={{ targetPattern, setTargetPattern }}>
           <div className="d-flex">
             <div className="me-2">
-              <h2>Goal</h2>
+              <h2>ゴール</h2>
               <BoardViewer width={500} height={500} board={problem.board.goal} />
             </div>
+            <div className="me-2">
+              <h2>現在のボード</h2>
+              <BoardViewer width={500} height={500} board={currentBoard} editable controller={controller.current} />
+            </div>
             <div>
-              <h2 className="">Current</h2>
-              <BoardViewer width={500} height={500} board={currentBoard} editable />
+              <h2>抜き型一覧</h2>
+              <div className="d-flex flex-wrap" style={{
+                backgroundColor: "#eee",
+                overflowY: "scroll",
+                width: "500px",
+                height: "500px"
+              }}>
+
+                {
+                  problem.patterns.map(p => <PatternViewer pattern={p} width={200} height={200} key={`pattern#${p.p}`} />)
+                }
+              </div>
+            </div>
+            <div style={{
+              width: "max-content"
+            }}>
+              <Container fluid className="me-4">
+                <h2>スコア</h2>
+                <Container style={{
+                  fontSize: "120%"
+                }}>
+                  <div>
+                    ボード: {
+                      (() => {
+                        const score = boardScore(currentBoard, problem.board.goal);
+                        return `${score.correct}/${score.all}(${Math.round(score.accuracy * 10000) / 100}%)`;
+                      })()
+                    }
+                  </div>
+                  <div>
+                    手数: {Math.round(answerScore(operations) * 100) / 100}
+                  </div>
+                  <div>
+                    総合: {
+                      totalScore(boardScore(currentBoard, problem.board.goal), answerScore(operations))
+                    }
+                  </div>
+                </Container>
+              </Container>
+              <Container fluid>
+                <h2>提出済み回答</h2>
+                <ListGroup>
+                  {
+                    submittedAnswers.map(ans => <AnswerViewer answer={ans}
+                      key={`answer#${ans.number}`}
+                      setController={(c) => {
+                        controller.current = c;
+                        controller.current.update();
+                      }}
+                    />)
+                  }
+                </ListGroup>
+              </Container>
             </div>
           </div>
-          抜き型一覧
-          <div style={{
-            display: "flex",
-            overflowX: "scroll",
-            overflowY: "hidden",
-            width: "100%",
-            height: "300px"
-          }}>
 
-            {
-              problem.patterns.map(p => <PatternViewer pattern={p} width={200} height={200} key={`pattern#${p.p}`} />)
-            }
-          </div>
-          <Form>
-            <Form.Label>回答出力</Form.Label>
-            <Form.Control id="answerOutput"></Form.Control>
-          </Form>
-          <Button onClick={() => {
-            // applyPattern関数はutils.js参照
-            let new_board = { ...applyPattern(currentBoard, problem.patterns[11], 2, 1, 2) };
-            setCurrentBoard(new_board);
-          }}>テスト</Button>
-          <GenerateAnswerButton problem={problem} current={currentBoard} setCurrent={setCurrentBoard} />
-
+          <Container fluid className="mt-2">
+            <BasicAnswerButton problem={problem} controller={controller.current} />
+            <Button onClick={() => { controller.current.update(); }} className="me-2" >アップデート</Button>
+            <Button onClick={() => {
+              controller.current.undo();
+              controller.current.update();
+            }} className="me-2" >Undo</Button>
+            <Button onClick={() => {
+              setDisabled(true);
+              proconApi.submitAnswer(operations);
+            }} >提出</Button>
+          </Container>
+          <Container fluid className="mt-2">
+            <Form>
+              <Form.Label>回答出力</Form.Label>
+              <Form.Control id="answerOutput" readOnly value={JSON.stringify(operations)} />
+            </Form>
+          </Container>
         </TargetPatternContext.Provider>
       }
     </Container>
   );
 }
 
-function GenerateAnswerButton({ problem, current, setCurrent }) {
-  let _current;
-  const pattern = problem.patterns[0];
-  const goal = problem.board.goal.cells;
-
-  const find = (x, y) => {
-    const num = goal[y][x];
-    let i = y, j = x;
-    while (i < _current.cells.length) {
-      if (_current.cells[i][j] === num) return [j, i];
-      j++;
-      if (j >= _current.cells[i].length) {
-        j = 0;
-        i++;
-      }
-    }
-    return null;
-  }
-
-  const move = (x, y, distX, distY) => {
-    while (x < distX) {
-      //X座標を右に持っていく
-      _current.applyPattern(pattern, distX, y, DIR.RIGHT);
-      x++;
-    }
-    while (y > distY) {
-      //Y軸でそろえる
-      _current.applyPattern(pattern, x, distY, DIR.UP);
-      y--;
-    }
-    while (x > distX) {
-      _current.applyPattern(pattern, distX, distY, DIR.LEFT);
-      x--;
-    }
-  };
-
-  useEffect(() => {
-    _current = new BoardController(current);
-    console.log(_current.board);
-  }, []);
-
-  return (<Button onClick={() => {
-    for (let i = 0; i < goal.length; i++) {
-      for (let j = 0; j < goal[i].length; j++) {
-        const num = goal[i][j];
-        if (_current.cells[i][j] === num) continue;
-        let src = find(j, i);
-        if (src === null) {
-          alert("error");
-          return;
-        }
-        move(src[0], src[1], j, i);
-      }
-    }
-    console.log(_current.operations);
-    setCurrent(_current.board);
-  }}>回答生成</Button>);
+function AnswerViewer({ answer, setController }) {
+  return (<ListGroup.Item >
+    No.{answer.number} スコア: {totalScore(answer.score.board, answer.score.answer)}
+    <Button variant="secondary" onClick={() => {
+      console.log(answer.controller);
+      setController(answer.controller);
+    }}>復元</Button>
+  </ListGroup.Item>);
 }
