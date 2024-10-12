@@ -19,8 +19,7 @@ const createWindow = () => {
   // This opens dev tool
   // mainWindow.webContents.openDevTools();
   ipcMain.on("getProblem", () => {
-    requests.get({
-      url: `${HOST}/problem`,
+    requests.get(`${HOST}/problem`, {
       headers: {
         "Procon-Token": TOKEN
       }
@@ -29,11 +28,11 @@ const createWindow = () => {
     });
   });
 
-  ipcMain.on("submitProblem", (data) => {
-    requests.post({
-      url: `${HOST}/answer`,
+  ipcMain.on("submitAnswer", (e, data) => {
+    requests.post(`${HOST}/answer`, {
       headers: {
-        "Procon-Token": TOKEN
+        "Procon-Token": TOKEN,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(data)
     }, (err, res, body) => {
