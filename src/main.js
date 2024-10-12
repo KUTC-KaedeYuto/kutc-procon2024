@@ -1,5 +1,4 @@
 const { app, BrowserWindow, ipcMain, webContents } = require('electron');
-const path = require('node:path');
 const requests = require("request");
 const { HOST, TOKEN } = require('./config');
 
@@ -18,7 +17,7 @@ const createWindow = () => {
 
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
   // This opens dev tool
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
   ipcMain.on("getProblem", () => {
     requests.get({
       url: `${HOST}/problem`,
@@ -27,6 +26,18 @@ const createWindow = () => {
       }
     }, (err, res, body) => {
       mainWindow.webContents.send("responseProblem", {status: res.statusCode, body});
+    });
+  });
+
+  ipcMain.on("submitProblem", (data) => {
+    requests.post({
+      url: `${HOST}/answer`,
+      headers: {
+        "Procon-Token": TOKEN
+      },
+      body: JSON.stringify(data)
+    }, (err, res, body) => {
+      mainWindow.webContents.send("responseAnswer", {status: res.statusCode, body});
     });
   });
 };
