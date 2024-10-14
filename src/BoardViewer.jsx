@@ -14,10 +14,10 @@ export default function BoardViewer({ width, height, board, editable = false, co
   const [onCursor, setOnCursor] = useState(false);
   const [placingPattern, setPlacingPattern] = useState(null);
   const getDir = (t) => {
-    if(t <= - Math.PI * 0.75) return 2;
-    if(t <= - Math.PI * 0.25) return 3;
-    if(t <= Math.PI * 0.25) return 0;
-    if(t <= Math.PI * 0.75) return 1;
+    if (t <= - Math.PI * 0.75) return 2;
+    if (t <= - Math.PI * 0.25) return 3;
+    if (t <= Math.PI * 0.25) return 0;
+    if (t <= Math.PI * 0.75) return 1;
     return 2;
   };
 
@@ -74,7 +74,6 @@ export default function BoardViewer({ width, height, board, editable = false, co
       }
     }
     ctx.save();
-    ctx.save();
     ctx.scale(zoom, zoom);
     ctx.translate(offset.x, offset.y);
     if (onCursor && targetPattern) {
@@ -86,8 +85,12 @@ export default function BoardViewer({ width, height, board, editable = false, co
       ctx.fillStyle = "rgba(0, 255, 0, 50%)";
       renderPattern(origin.x, origin.y, pattern_cells);
     }
+    ctx.restore();
 
     if (placingPattern != null) {
+      ctx.save();
+      ctx.scale(zoom, zoom);
+      ctx.translate(offset.x, offset.y);
       const origin = placingPattern.pos;
       const pattern_cells = placingPattern.pattern.cells;
       ctx.fillStyle = "rgba(0, 200, 0, 50%)";
@@ -123,13 +126,12 @@ export default function BoardViewer({ width, height, board, editable = false, co
       const theta = Math.atan2(mouseDelta.y, mouseDelta.x);
       let n = getDir(theta);
       for (let i = 0; i < 4; i++) {
-        if(i === n) ctx.fillStyle = "rgba(255, 0, 0, 50%)";
+        if (i === n) ctx.fillStyle = "rgba(255, 0, 0, 50%)";
         else ctx.fillStyle = "rgba(255, 0, 0, 20%)";
         drawTriangle(2 * width / 5, 0, i);
       }
-      
+
     }
-    ctx.restore();
   };
 
   const handleWheel = (e) => {
@@ -173,7 +175,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
       });
       setTargetPattern(null);
     }
-    if(placingPattern){
+    if (placingPattern) {
       const _pattern = placingPattern.pattern;
       const distX = placingPattern.pos.x;
       const distY = placingPattern.pos.y;
@@ -202,6 +204,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
   }
 
   const handleMouseLeave = (e) => {
+    mouseDown.current = false;
     setOnCursor(false);
   }
 
