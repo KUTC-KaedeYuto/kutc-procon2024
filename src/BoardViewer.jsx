@@ -31,6 +31,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
     ctx.fillStyle = "#777";
     ctx.fillRect(0, 0, width, height);
 
+    // 横線
     ctx.scale(zoom, zoom);
     ctx.fillStyle = "#fff";
     ctx.fillRect(offset.x, offset.y, cellSize * b_width, cellSize * b_height);
@@ -41,12 +42,14 @@ export default function BoardViewer({ width, height, board, editable = false, co
       ctx.lineTo(width / zoom, i);
       ctx.stroke();
     }
+    // 縦線
     for (let i = offset.x % cellSize; i <= width / zoom; i += cellSize) {
       ctx.beginPath();
       ctx.moveTo(i, 0);
       ctx.lineTo(i, height / zoom);
       ctx.stroke();
     }
+    // 数字
     ctx.translate(offset.x, offset.y);
     ctx.fillStyle = "#000";
     ctx.textAlign = "center";
@@ -73,6 +76,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
         }
       }
     }
+    // マウス基準の抜き型
     ctx.save();
     ctx.scale(zoom, zoom);
     ctx.translate(offset.x, offset.y);
@@ -87,6 +91,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
     }
     ctx.restore();
 
+    // 位置確定後の抜き型
     if (placingPattern != null) {
       ctx.save();
       ctx.scale(zoom, zoom);
@@ -124,9 +129,44 @@ export default function BoardViewer({ width, height, board, editable = false, co
         y: prevMousePos.current[1] - height / 2
       };
       const theta = Math.atan2(mouseDelta.y, mouseDelta.x);
+      const r = Math.abs(mouseDelta.x) + Math.abs(mouseDelta.y);
       let n = getDir(theta);
+      //真ん中のひし形
+      (() => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(0, 0, 0, 20%)";
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, height);
+        ctx.lineTo(width, height);
+        ctx.lineTo(width, 0);
+        ctx.lineTo(0, 0);
+        ctx.save();
+        ctx.rotate(Math.PI / 4);
+        ctx.translate(Math.sqrt(width ** 2 + height ** 2) / 2, 0);
+        const a = Math.sqrt(2) * Math.min(width, height) / 4;
+        ctx.rect(-a / 2, -a / 2, a, a);
+        ctx.restore();
+        ctx.fill();
+        ctx.restore();
+      })();
+      //キャンセルボタン
+      (() => {
+        const a = width * 0.1;
+        const b = a / 2;
+        ctx.save();
+        ctx.translate(width * 0.9, 0);
+        ctx.fillStyle = "rgba(255, 0, 0, 50%)";
+        ctx.fillRect(0, 0, a, a);
+        ctx.translate(b, b);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(-b, -3, b * 2, 3);
+        ctx.fillRect(-3, -b, 3, b * 2);
+        ctx.restore();
+      })();
       for (let i = 0; i < 4; i++) {
-        if (i === n) ctx.fillStyle = "rgba(255, 0, 0, 50%)";
+        if (i === n && r >= Math.min(width, height) / 4) ctx.fillStyle = "rgba(255, 0, 0, 50%)";
         else ctx.fillStyle = "rgba(255, 0, 0, 20%)";
         drawTriangle(2 * width / 5, 0, i);
       }
@@ -176,6 +216,10 @@ export default function BoardViewer({ width, height, board, editable = false, co
       setTargetPattern(null);
     }
     if (placingPattern) {
+      if(prevMousePos.current[0] >= width * 0.9 && prevMousePos.current[1] <= width * 0.1){
+        setPlacingPattern(null);
+        return;
+      }
       const _pattern = placingPattern.pattern;
       const distX = placingPattern.pos.x;
       const distY = placingPattern.pos.y;
@@ -184,10 +228,13 @@ export default function BoardViewer({ width, height, board, editable = false, co
         y: prevMousePos.current[1] - height / 2
       };
       const theta = Math.atan2(mouseDelta.y, mouseDelta.x);
-      const dir = [3, 1, 2, 0][getDir(theta)];
-      controller.applyPattern(_pattern, distX, distY, dir);
-      controller.update();
-      setPlacingPattern(null);
+      const r = Math.abs(mouseDelta.x) + Math.abs(mouseDelta.y);
+      if (r >= Math.min(width, height) / 4) {
+        const dir = [3, 1, 2, 0][getDir(theta)];
+        controller.applyPattern(_pattern, distX, distY, dir);
+        controller.update();
+        setPlacingPattern(null);
+      }
     }
   }
 
