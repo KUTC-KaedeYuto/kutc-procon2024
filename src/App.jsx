@@ -8,6 +8,7 @@ import { answerScore, BASIC_PATTERNS, BoardController, boardScore, totalScore } 
 import Form from "react-bootstrap/Form";
 import BasicAnswerButton from "./buttons/BasicAnswerButton.jsx";
 import { ListGroup } from "react-bootstrap";
+import DPMoveButton from "./buttons/DPMoveButton.jsx";
 
 export const TargetPatternContext = createContext(null);
 
@@ -175,7 +176,10 @@ export default function App() {
           </div>
 
           <Container fluid className="mt-2">
+            基本回答
             <BasicAnswerButton problem={problem} controller={controller.current} />
+            動的計画法
+            <DPMoveButton problem={problem} controller={controller.current} />
             <Button onClick={() => { controller.current.update(); }} className="me-2" >アップデート</Button>
             <Button onClick={() => {
               controller.current.undo();
