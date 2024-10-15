@@ -5,7 +5,6 @@ import Button from "react-bootstrap/Button";
 import BoardViewer from "./BoardViewer.jsx";
 import PatternViewer from "./PatternViewer.jsx";
 import { answerScore, BASIC_PATTERNS, BoardController, boardScore, totalScore } from "./utils.js";
-import Form from "react-bootstrap/Form";
 import BasicAnswerButton from "./buttons/BasicAnswerButton.jsx";
 import { ListGroup } from "react-bootstrap";
 import DPMoveButton from "./buttons/DPMoveButton.jsx";
@@ -21,6 +20,7 @@ export default function App() {
   const [submittedAnswers, setSubmittedAnswers] = useState([]);
   const controller = useRef(null);
   const [submitResponse, setSubmitResponse] = useState(null);
+  const [viewMode, setViewMode] = useState("color");
 
   const handleResponse = ({ status, body }) => {
     console.log(`[Answer Response] Status:${status}`);
@@ -112,11 +112,11 @@ export default function App() {
           <div className="d-flex">
             <div className="me-2">
               <h2>ゴール</h2>
-              <BoardViewer width={500} height={500} board={problem.board.goal} />
+              <BoardViewer width={500} height={500} board={problem.board.goal} viewMode={viewMode} />
             </div>
             <div className="me-2">
               <h2>現在のボード</h2>
-              <BoardViewer width={500} height={500} board={currentBoard} editable controller={controller.current} />
+              <BoardViewer width={500} height={500} board={currentBoard} editable controller={controller.current} viewMode={viewMode} />
             </div>
             <div>
               <h2>抜き型一覧</h2>
@@ -180,21 +180,32 @@ export default function App() {
             <BasicAnswerButton problem={problem} controller={controller.current} />
             動的計画法
             <DPMoveButton problem={problem} controller={controller.current} />
-            <Button onClick={() => { controller.current.update(); }} className="me-2" >アップデート</Button>
+            <Button variant="secondary" onClick={() => {
+              setViewMode(viewMode === "color" ? "number": "color");
+            }} className="me-2" >表示変更</Button>
+            <Button variant="secondary" onClick={() => {
+              controller.current.update();
+            }} className="me-2" >アップデート</Button>
             <Button onClick={() => {
               controller.current.undo();
               controller.current.update();
             }} className="me-2" >Undo</Button>
-            <Button onClick={() => {
+            <Button variant="warning" onClick={() => {
               setDisabled(true);
               proconApi.submitAnswer(operations);
             }} >提出</Button>
           </Container>
           <Container fluid className="mt-2">
-            <Form>
-              <Form.Label>回答出力</Form.Label>
-              <Form.Control id="answerOutput" readOnly value={JSON.stringify(operations)} />
-            </Form>
+            <h4>回答出力</h4>
+            <div>
+              {
+                (() => {
+                  const result = JSON.stringify(operations);
+                  if (result.length >= 10000) return result.substring(0, 10000) + "...";
+                  return result;
+                })()
+              }
+            </div>
           </Container>
         </TargetPatternContext.Provider>
       }

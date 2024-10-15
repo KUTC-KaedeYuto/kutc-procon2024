@@ -3,8 +3,9 @@ import { TargetPatternContext } from "./App.jsx";
 
 const offsetRate = 0.05;
 const cellSize = 50;
+const colors = new Array(4).fill(0).map((_n, i) => `hsl(${i * 90}deg, 50%, 50%)`);
 
-export default function BoardViewer({ width, height, board, editable = false, controller }) {
+export default function BoardViewer({ width, height, board, editable = false, controller, viewMode = "number" }) {
   const canvas_ref = useRef();
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: width * offsetRate, y: height * offsetRate });
@@ -50,14 +51,29 @@ export default function BoardViewer({ width, height, board, editable = false, co
       ctx.stroke();
     }
     // 数字
-    ctx.translate(offset.x, offset.y);
-    ctx.fillStyle = "#000";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `${parseInt(cellSize * 0.75)}px sansserif`;
-    for (let i = 0; i < b_height; i++) {
-      for (let j = 0; j < b_width; j++) {
-        ctx.fillText(board.cells[i][j], cellSize * (j + 0.5), cellSize * (i + 0.5));
+    if (viewMode === "number") {
+      ctx.translate(offset.x, offset.y);
+      ctx.fillStyle = "#000";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `${parseInt(cellSize * 0.75)}px sans-serif`;
+      for (let i = 0; i < b_height; i++) {
+        for (let j = 0; j < b_width; j++) {
+          ctx.fillText(board.cells[i][j], cellSize * (j + 0.5), cellSize * (i + 0.5));
+        }
+      }
+    }
+    // 色
+    if(viewMode === "color") {
+      ctx.translate(offset.x, offset.y);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < b_height; i++) {
+        for (let j = 0; j < b_width; j++) {
+          ctx.fillStyle = colors[board.cells[i][j]];
+          ctx.fillRect(cellSize * j, cellSize * i, cellSize, cellSize);
+          ctx.strokeRect(cellSize * j, cellSize * i, cellSize, cellSize);
+        }
       }
     }
 
@@ -86,7 +102,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
         y: Math.floor((prevMousePos.current[1] / zoom - offset.y) / cellSize)
       };
       const pattern_cells = targetPattern.cells;
-      ctx.fillStyle = "rgba(0, 255, 0, 50%)";
+      ctx.fillStyle = `rgba(0, ${viewMode === "number" ? 255 : 0}, 0, 50%)`;
       renderPattern(origin.x, origin.y, pattern_cells);
     }
     ctx.restore();
@@ -98,7 +114,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
       ctx.translate(offset.x, offset.y);
       const origin = placingPattern.pos;
       const pattern_cells = placingPattern.pattern.cells;
-      ctx.fillStyle = "rgba(0, 200, 0, 50%)";
+      ctx.fillStyle = `rgba(0, ${viewMode === "number" ? 200 : 0}, 0, 50%)`;
       renderPattern(origin.x, origin.y, pattern_cells);
       ctx.restore();
       const drawTriangle = (x, y, dir) => {
@@ -166,8 +182,8 @@ export default function BoardViewer({ width, height, board, editable = false, co
         ctx.restore();
       })();
       for (let i = 0; i < 4; i++) {
-        if (i === n && r >= Math.min(width, height) / 4) ctx.fillStyle = "rgba(255, 0, 0, 50%)";
-        else ctx.fillStyle = "rgba(255, 0, 0, 20%)";
+        if (i === n && r >= Math.min(width, height) / 4) ctx.fillStyle = "rgba(255, 0, 0, 80%)";
+        else ctx.fillStyle = "rgba(255, 0, 0, 50%)";
         drawTriangle(2 * width / 5, 0, i);
       }
 
@@ -204,7 +220,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
     mouseDown.current = false;
   };
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (targetPattern) {
       setPlacingPattern({
         pos: {
@@ -216,7 +232,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
       setTargetPattern(null);
     }
     if (placingPattern) {
-      if(prevMousePos.current[0] >= width * 0.9 && prevMousePos.current[1] <= width * 0.1){
+      if (prevMousePos.current[0] >= width * 0.9 && prevMousePos.current[1] <= width * 0.1) {
         setPlacingPattern(null);
         return;
       }
@@ -231,7 +247,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
       const r = Math.abs(mouseDelta.x) + Math.abs(mouseDelta.y);
       if (r >= Math.min(width, height) / 4) {
         const dir = [3, 1, 2, 0][getDir(theta)];
-        controller.applyPattern(_pattern, distX, distY, dir);
+        await controller.applyPattern(_pattern, distX, distY, dir);
         controller.update();
         setPlacingPattern(null);
       }
@@ -257,7 +273,7 @@ export default function BoardViewer({ width, height, board, editable = false, co
 
   useEffect(() => {
     draw();
-  }, [board, zoom, offset, onCursor, placingPattern]);
+  }, [board, zoom, offset, onCursor, placingPattern, viewMode]);
 
   useEffect(() => {
     const canvas = canvas_ref.current;
