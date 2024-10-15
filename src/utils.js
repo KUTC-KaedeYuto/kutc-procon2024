@@ -9,6 +9,8 @@ export const BASIC_PATTERNS = [
   }
 ];
 
+const MAX_ITERATIONS = 100;
+let iteration = 0;
 
 const cellValue = (type, x, y) => {
   if (type === 0) return 1
@@ -37,66 +39,74 @@ for (let i = 2; i <= 256; i *= 2) {
 // pattern: 適用する抜き型
 // x, y: 抜き型を適用する際の左上の座標
 // dir: 方向
-export function applyPattern(board, pattern, x, y, dir) {
+export async function applyPattern(board, pattern, x, y, dir) {
   // dir: 方向(0: 上, 1: 下, 2: 左, 3: 右)
-  let [ox, oy, masked_pattern] = maskPattern(board, pattern, x, y);
+  let temp = structuredClone(pattern);
+  let [ox, oy, masked_pattern] = maskPattern(board, temp, x, y);
   if (masked_pattern.size.width <= 0 || masked_pattern.size.height <= 0) throw new InvalidOperationException(board, pattern, x, y);
-  return shiftCells(board, dir, masked_pattern, ox, oy);
+  await shiftCells(board, dir, masked_pattern, ox, oy);
 }
 
 //抜き型をボードの範囲内に収まるようにリサイズする関数
 function maskPattern(board, pattern, x, y) {
-  let masked_pattern = structuredClone(pattern);
   if (x < 0) {
     //サイズの変更
-    masked_pattern.size.width += x;
+    pattern.size.width += x;
     //抜き型の変更
-    masked_pattern.cells.map((line) => {
+    pattern.cells.map((line) => {
       line.splice(0, -x);
     });
     //適用座標の変更
     x = 0;
   }
   if (y < 0) {
-    masked_pattern.size.height += y;
-    masked_pattern.cells.splice(0, -y);
+    pattern.size.height += y;
+    pattern.cells.splice(0, -y);
     y = 0;
   }
 
-  if (x + masked_pattern.size.width > board.size.width) {
-    masked_pattern.size.width = Math.max(0, board.size.width - x);
-    masked_pattern.cells.map(line => {
+  if (x + pattern.size.width > board.size.width) {
+    pattern.size.width = Math.max(0, board.size.width - x);
+    pattern.cells.map(line => {
       line.splice(board.size.width - x, line.length);
     });
   }
-  if (y + masked_pattern.size.height > board.size.height) {
-    masked_pattern.size.height = Math.max(0, board.size.height - y);
-    masked_pattern.cells.splice(board.size.height - y, masked_pattern.cells.length);
+  if (y + pattern.size.height > board.size.height) {
+    pattern.size.height = Math.max(0, board.size.height - y);
+    pattern.cells.splice(board.size.height - y, pattern.cells.length);
   }
 
-  return [x, y, masked_pattern];
+  return [x, y, pattern];
 }
 
 //抜き型を適用したときのマスの移動を計算する関数
-function shiftCells(board, dir, pattern, x, y) {
+async function shiftCells(board, dir, pattern, x, y) {
+  if(iteration++ >= MAX_ITERATIONS){
+    iteration = 0;
+    await new Promise((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 0);
+    });
+  }
   // _dir == 0 -> vertical, _dir == 1 -> horizontal
   const _dir = Math.floor(dir / 2);
   const length = _dir === 0 ? pattern.size.width : pattern.size.height;
   const movingCells = new Array(length).fill(0).map((i) => new Array());
 
   // 転置処理
-  const transpose = (matrix) => {
+  const transpose = async (matrix) => {
     return matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]));
   };
 
   // 元の配列を取得
-  let cells = board.cells.map(row => row.slice());
-  let pattern_cells = pattern.cells.map(row => row.slice());
+  let cells = board.cells;
+  let pattern_cells = pattern.cells;
 
   // 転置処理（縦方向シフト時のみ）
   if (_dir === 0) {
-    cells = transpose(cells);
-    pattern_cells = transpose(pattern_cells);
+    cells = await transpose(cells);
+    pattern_cells = await transpose(pattern_cells);
     let temp = x;
     x = y;
     y = temp;
@@ -127,10 +137,10 @@ function shiftCells(board, dir, pattern, x, y) {
 
   // 転置処理を元に戻す（縦方向シフト時のみ）
   if (_dir === 0) {
-    cells = transpose(cells);
+    cells = await transpose(cells);
   }
 
-  return { ...board, cells: cells };
+  board.cells = cells;
 }
 
 export class BoardController {
@@ -168,7 +178,7 @@ export class BoardController {
   }
 
   #setBoard(new_board) {
-    this.#history.push(this.#board);
+    // this.#history.push(this.#board);
     this.#board = new_board;
   }
 
@@ -186,15 +196,17 @@ export class BoardController {
     this.#operations = [];
   }
 
-  applyPattern(pattern, x, y, dir) {
+  async applyPattern(pattern, x, y, dir) {
     try {
-      this.#setBoard(applyPattern(this.#board, pattern, x, y, dir));
+      await applyPattern(this.#board, pattern, x, y, dir);
       this.#operations.push({
         p: pattern.p,
         x,
         y,
         s: dir
       });
+      // this.#setBoard();
+      
     } catch (e) {
       console.error(e);
     }

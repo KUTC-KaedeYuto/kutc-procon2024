@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import Button from "react-bootstrap/Button";
 import { DIR } from "../utils";
 
@@ -9,13 +9,14 @@ export default function DPMoveButton({ problem, controller }) {
   const goal = problem.board.goal.cells;
   const dp = useRef(null);
   const prev = useRef(null);
+  const [disabled, setDisabled] = useState(false);
 
   const getPatternNumber = (d) => {
     if (d === 1) return 0;
     return 3 * Math.floor(Math.log2(d) - 1) + 1;
   }
 
-  const getPattern = n => problem.patterns.at(getPatternNumber(n));
+  const getPattern = n => problem.patterns[getPatternNumber(n)];
 
   const find = (x, y) => {
     const num = goal[y][x];
@@ -31,7 +32,7 @@ export default function DPMoveButton({ problem, controller }) {
     return null;
   }
 
-  const move = (x, y, distX, distY) => {
+  const move = async (x, y, distX, distY) => {
     //X座標を右に持っていく
     let steps = generateSteps(x, distX - x, true);
     while (x < distX) {
@@ -39,10 +40,10 @@ export default function DPMoveButton({ problem, controller }) {
       const pattern = getPattern(Math.abs(operation));
       if (operation > 0) {
         // 右に移動
-        controller.applyPattern(pattern, x + 1, y, DIR.RIGHT);
+        await controller.applyPattern(pattern, x + 1, y, DIR.RIGHT);
       } else {
         // 左に移動
-        controller.applyPattern(pattern, x + operation, y, DIR.LEFT);
+        await controller.applyPattern(pattern, x + operation, y, DIR.LEFT);
       }
       x += operation;
     }
@@ -51,14 +52,14 @@ export default function DPMoveButton({ problem, controller }) {
       //Y軸でそろえる
       const [prev, operation] = steps.pop();
       const pattern = getPattern(Math.abs(operation));
-      controller.applyPattern(pattern, x, distY, DIR.UP);
+      await controller.applyPattern(pattern, x, distY, DIR.UP);
       y -= operation;
     }
     steps = generateSteps(x, x - distX, true);
     while (x > distX) {
       const [prev, operation] = steps.pop();
       const pattern = getPattern(Math.abs(operation));
-      controller.applyPattern(pattern, distX, distY, DIR.LEFT);
+      await controller.applyPattern(pattern, distX, distY, DIR.LEFT);
       x -= operation;
     }
   };
@@ -125,12 +126,7 @@ export default function DPMoveButton({ problem, controller }) {
     return steps;
   };
 
-
-
-  return (<Button className="me-2" onClick={() => {
-    calculateDP(controller.board.size.width);
-
-
+  const run = async () => {
     for (let i = 0; i < goal.length; i++) {
       for (let j = 0; j < goal[i].length; j++) {
         const num = goal[i][j];
@@ -140,9 +136,20 @@ export default function DPMoveButton({ problem, controller }) {
           alert("error");
           return;
         }
-        move(src[0], src[1], j, i);
+        await move(src[0], src[1], j, i);
       }
     }
-    controller.update();
+  }
+
+  return (<Button className="me-2" disabled={disabled} onClick={async () => {
+    setDisabled(true);
+    calculateDP(controller.board.size.width);
+
+    const start = performance.now();
+    run().then(() => {
+      controller.update();
+      setDisabled(false);
+      console.log(`Process ends in ${performance.now() - start}ms`);
+    });
   }}>回答生成</Button>);
 }

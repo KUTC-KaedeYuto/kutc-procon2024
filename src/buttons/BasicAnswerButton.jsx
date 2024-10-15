@@ -1,10 +1,11 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Button from "react-bootstrap/Button";
 import { DIR } from "../utils";
 
 export default function BasicAnswerButton({ problem, controller }) {
   const pattern = problem.patterns[0];
   const goal = problem.board.goal.cells;
+  const [disabled, setDisabled] = useState(false);
 
   const find = (x, y) => {
     const num = goal[y][x];
@@ -20,24 +21,24 @@ export default function BasicAnswerButton({ problem, controller }) {
     return null;
   }
 
-  const move = (x, y, distX, distY) => {
+  const move = async (x, y, distX, distY) => {
     while (x < distX) {
       //X座標を右に持っていく
-      controller.applyPattern(pattern, distX, y, DIR.RIGHT);
+      await controller.applyPattern(pattern, distX, y, DIR.RIGHT);
       x++;
     }
     while (y > distY) {
       //Y軸でそろえる
-      controller.applyPattern(pattern, x, distY, DIR.UP);
+      await controller.applyPattern(pattern, x, distY, DIR.UP);
       y--;
     }
     while (x > distX) {
-      controller.applyPattern(pattern, distX, distY, DIR.LEFT);
+      await controller.applyPattern(pattern, distX, distY, DIR.LEFT);
       x--;
     }
   };
 
-  return (<Button className="me-2" onClick={() => {
+  const run = async () => {
     for (let i = 0; i < goal.length; i++) {
       for (let j = 0; j < goal[i].length; j++) {
         const num = goal[i][j];
@@ -47,9 +48,18 @@ export default function BasicAnswerButton({ problem, controller }) {
           alert("error");
           return;
         }
-        move(src[0], src[1], j, i);
+        await move(src[0], src[1], j, i);
       }
     }
-    controller.update();
+  }
+
+  return (<Button className="me-2" disabled={disabled} onClick={async () => {
+    setDisabled(true);
+    const start = performance.now();
+    run().then(() => {
+      controller.update();
+      console.log(`Process ends in ${performance.now() - start}ms`);
+      setDisabled(false);
+    });
   }}>回答生成</Button>);
 }
