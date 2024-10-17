@@ -1,5 +1,5 @@
 import "./App.scss";
-import React, { useState, useEffect, createContext, useRef } from "react";
+import React, { useState, useEffect, createContext, useRef, use } from "react";
 import Container from 'react-bootstrap/Container';
 import Button from "react-bootstrap/Button";
 import BoardViewer from "./BoardViewer.jsx";
@@ -10,6 +10,7 @@ import { ListGroup } from "react-bootstrap";
 import DPMoveButton from "./buttons/DPMoveButton.jsx";
 
 export const TargetPatternContext = createContext(null);
+export const ReadFileCallbackContext = createContext(null);
 
 export default function App() {
   const [disabled, setDisabled] = useState(false);
@@ -21,6 +22,7 @@ export default function App() {
   const controller = useRef(null);
   const [submitResponse, setSubmitResponse] = useState(null);
   const [viewMode, setViewMode] = useState("color");
+  const [saveHistory, setSaveHistory] = useState(true);
 
   const handleResponse = ({ status, body }) => {
     console.log(`[Answer Response] Status:${status}`);
@@ -176,20 +178,34 @@ export default function App() {
           </div>
 
           <Container fluid className="mt-2">
-            基本回答
-            <BasicAnswerButton problem={problem} controller={controller.current} />
-            動的計画法
-            <DPMoveButton problem={problem} controller={controller.current} />
+            <div className="me-2 ps-2 d-inline-block">
+              <div>基本回答</div>
+              <BasicAnswerButton problem={problem} controller={controller.current} />
+            </div>
+
+            <div className="me-2 ps-2 d-inline-block">
+              <div>改良型</div>
+              <DPMoveButton problem={problem} controller={controller.current} />
+            </div>
             <Button variant="secondary" onClick={() => {
-              setViewMode(viewMode === "color" ? "number": "color");
+              setViewMode(viewMode === "color" ? "number" : "color");
             }} className="me-2" >表示変更</Button>
             <Button variant="secondary" onClick={() => {
               controller.current.update();
             }} className="me-2" >アップデート</Button>
+            <div className="me-2 ps-2 d-inline-block">
+              <div>履歴の保存</div>
+              <Button variant={saveHistory ? "primary" : "outline-primary"} onClick={() => {
+                setSaveHistory(!saveHistory);
+                controller.current.saveHistory = saveHistory;
+              }}>{
+                saveHistory ? "有効": "無効"
+              }</Button>
+            </div>
             <Button onClick={() => {
               controller.current.undo();
               controller.current.update();
-            }} className="me-2" >Undo</Button>
+            }} className="me-2" disabled={!saveHistory} >Undo</Button>
             <Button variant="warning" onClick={() => {
               setDisabled(true);
               proconApi.submitAnswer(operations);

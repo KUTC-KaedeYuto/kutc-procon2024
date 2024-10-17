@@ -81,7 +81,7 @@ function maskPattern(board, pattern, x, y) {
 
 //抜き型を適用したときのマスの移動を計算する関数
 async function shiftCells(board, dir, pattern, x, y) {
-  if(iteration++ >= MAX_ITERATIONS){
+  if (iteration++ >= MAX_ITERATIONS) {
     iteration = 0;
     await new Promise((resolve) => {
       setTimeout(() => {
@@ -149,6 +149,8 @@ export class BoardController {
   #operations;
   #history;
   #state;
+  #lockUndo;
+  saveHistory;
 
   constructor({ board, setBoard, operations, setOperations }) {
     this.#init_board = board;
@@ -159,6 +161,8 @@ export class BoardController {
       setOperations
     };
     this.reset();
+    this.#lockUndo = false;
+    this.saveHistory = true;
   }
 
   get board() {
@@ -177,9 +181,19 @@ export class BoardController {
     return this.#board.size;
   }
 
-  #setBoard(new_board) {
-    // this.#history.push(this.#board);
-    this.#board = new_board;
+  #pushHistory() {
+    if (this.#history.length >= 100) {
+      let writeContent = ``;
+      this.#history.map((b) => {
+        const arr = encodeBoard(b.cells);
+        writeContent += `${toBase64(arr)}\n`;
+      });
+      const file_name = `${Math.floor(this.#operations.length / 100)}.txt`;
+      FileWriter.write(file_name, writeContent);
+      this.#history = [];
+    }
+    this.#history.push(structuredClone(this.#board));
+    
   }
 
   reset() {
@@ -198,6 +212,7 @@ export class BoardController {
 
   async applyPattern(pattern, x, y, dir) {
     try {
+      // this.#pushHistory();
       await applyPattern(this.#board, pattern, x, y, dir);
       this.#operations.push({
         p: pattern.p,
@@ -205,21 +220,38 @@ export class BoardController {
         y,
         s: dir
       });
-      // this.#setBoard();
-      
     } catch (e) {
       console.error(e);
     }
   }
 
-  undo() {
-    if (this.#history.length === 0) return null;
+  reBuildBoard() {
     this.#board = this.#history.pop();
+    if (this.#history.length === 0 && this.#operations.length > 100) {
+      this.#lockUndo = true;
+      const file_name = `${Math.floor((this.#operations.length - 1) / 100)}.txt`;
+      FileReader.read(file_name, (data) => {
+        const size = this.#board.size;
+        this.#history = data.trimEnd().split("\n").map((line) => {
+          return {
+            size,
+            cells: decodeBoard(toArray(line), size.width, size.height)
+          }
+        });
+        this.#lockUndo = false;
+      });
+    }
+  }
+
+  undo() {
+    while (this.#lockUndo) { }
+    if (this.#operations.length === 0) return null;
+    this.reBuildBoard();
     return this.#operations.pop();
   }
 
   update() {
-    this.#state.setBoard(this.#board);
+    this.#state.setBoard(structuredClone(this.#board));
     this.#state.setOperations({
       n: this.#operations.length,
       ops: this.#operations
@@ -268,3 +300,98 @@ export function answerScore(ans) {
 export function totalScore(board_score, answer_score) {
   return Math.round((board_score.correct * 100000 + answer_score) * 100) / 100;
 }
+
+class FileReader {
+  static #id;
+  static #callbacks;
+
+  static {
+    this.#id = 0;
+    this.#callbacks = {};
+    fileApi.receive((data) => {
+      this.#handleReadFile(data);
+    });
+  }
+
+  static read(file_name, callback) {
+    const new_id = `${this.#id++}`;
+    this.#callbacks[new_id] = callback;
+    fileApi.read(new_id, file_name);
+  }
+
+  static #handleReadFile(data) {
+    if (data.status === "success") {
+      const id = data.data.id;
+      if (Object.keys(this.#callbacks).includes("" + id)) {
+        this.#callbacks[id](data.data.value);
+      }
+    } else {
+      console.log(data.data.value);
+    }
+  }
+}
+
+class FileWriter {
+  static write(file_name, data) {
+    fileApi.write(file_name, data);
+  }
+}
+
+function encodeBoard(cells) {
+  const result = new Uint8Array((cells.length * cells[0].length) / 4);
+  let index = 0;
+  let n = 0;
+  let k = 0;
+  for (let i = 0; i < cells.length; i++) {
+    for (let j = 0; j < cells[i].length; j++) {
+      n |= (cells[i][j] & 0b11) << (6 - k++ * 2);
+      if (k >= 4) {
+        result[index++] = n;
+        n = 0;
+        k = 0;
+      }
+    }
+  }
+  if (n != 0) result[index] = n;
+  return result;
+}
+
+function decodeBoard(arr, width, height) {
+  const result = Array.from({ length: height }, () => Array(width).fill(0));
+  let index = 0;
+  let n = 0;
+  let k = 0;
+
+  for (let i = 0; i < height; i++) {
+    for (let j = 0; j < width; j++) {
+      if (k === 0) {
+        n = arr[index++];
+      }
+      // 6 - k * 2を使って上位ビットから順に取り出す
+      const value = (n >> (6 - k * 2)) & 0b11;
+      result[i][j] = value;
+      k++;
+      if (k >= 4) {
+        k = 0;
+      }
+    }
+  }
+  console.log(result);
+  return result;
+}
+
+function toBase64(uint8Array) {
+  return btoa(String.fromCharCode(...uint8Array));
+}
+
+function toArray(base64Text) {
+  const binaryString = atob(base64Text);
+  const length = binaryString.length;
+  const uint8Array = new Uint8Array(length);
+
+  for (let i = 0; i < length; i++) {
+    uint8Array[i] = binaryString.charCodeAt(i);
+  }
+  return uint8Array;
+}
+

@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, webContents } = require('electron');
 const requests = require("request");
+const zlib = require("zlib");
+const fs = require("fs");
 const { HOST, TOKEN } = require('./config');
 
 if (require('electron-squirrel-startup')) {
@@ -39,6 +41,22 @@ const createWindow = () => {
       mainWindow.webContents.send("responseAnswer", {status: res.statusCode, body});
     });
   });
+
+  ipcMain.on("writeFile", (e, f_name, data) => {
+    fs.writeFile(`temp/${f_name}`, data, () => {});
+  });
+
+  ipcMain.on("readFile", (e, id, f_name) => {
+    try{
+      fs.readFile(`temp/${f_name}`, "utf-8", (err, data) => {
+        mainWindow.webContents.send("responseReadFile", {status: "success", data: {id, value: data}})
+      });
+    }catch(e){
+      console.log(e);
+      mainWindow.webContents.send("responseReadFile", {status: "fail", data: {id, value: e}});
+    }
+  })
+
 };
 
 
