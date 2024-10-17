@@ -53,7 +53,7 @@ export default function BasicAnswerButton({ problem, controller }) {
     }
   }
 
-  return (<Button className="me-2" disabled={disabled} onClick={async () => {
+  return (<Button className="me-2" variant="danger" disabled={disabled} onClick={async () => {
     setDisabled(true);
     const start = performance.now();
     run().then(() => {
