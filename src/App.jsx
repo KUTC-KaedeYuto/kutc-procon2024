@@ -8,6 +8,7 @@ import { answerScore, BASIC_PATTERNS, BoardController, boardScore, totalScore } 
 import BasicAnswerButton from "./buttons/BasicAnswerButton.jsx";
 import { ListGroup } from "react-bootstrap";
 import DPMoveButton from "./buttons/DPMoveButton.jsx";
+import DPMoveButton2 from "./buttons/DPMoveButton2.jsx";
 
 export const TargetPatternContext = createContext(null);
 export const ReadFileCallbackContext = createContext(null);
@@ -187,6 +188,11 @@ export default function App() {
               <div>改良型</div>
               <DPMoveButton problem={problem} controller={controller.current} />
             </div>
+            <div className="me-2 ps-2 d-inline-block">
+              <div>改良型V2</div>
+              <DPMoveButton2 problem={problem} controller={controller.current} />
+            </div>
+            
             <Button variant="secondary" onClick={() => {
               setViewMode(viewMode === "color" ? "number" : "color");
             }} className="me-2" >表示変更</Button>

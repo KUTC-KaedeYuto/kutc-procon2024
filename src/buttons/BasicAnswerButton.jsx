@@ -5,7 +5,7 @@ import { DIR } from "../utils";
 export default function BasicAnswerButton({ problem, controller }) {
   const pattern = problem.patterns[0];
   const goal = problem.board.goal.cells;
-  const [disabled, setDisabled] = useState(false);
+  const [disabled, setDisabled] = useState(true);
 
   const find = (x, y) => {
     const num = goal[y][x];
